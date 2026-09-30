@@ -12,18 +12,37 @@ certainly already have.
 
 ### Arch Linux
 
+It is on the AUR as [`quickkey`](https://aur.archlinux.org/packages/quickkey):
+
 ```sh
-makepkg -si
+paru -S quickkey        # or: yay -S quickkey
 ```
 
-That installs `/usr/bin/quickkey`, a systemd **user** unit, and a fallback
-config at `/usr/share/quickkey/quickkey.conf`.  The PKGBUILD builds from the
-files in this directory rather than a release tarball, so re-run `updpkgsums`
-after editing any of them.
+Or without a helper:
+
+```sh
+git clone https://aur.archlinux.org/quickkey.git
+cd quickkey && makepkg -si
+```
+
+Either way you get `/usr/bin/quickkey`, a systemd **user** unit, and a
+fallback config at `/usr/share/quickkey/quickkey.conf`.
 
 ```sh
 systemctl --user enable --now quickkey.service   # keep it warm (see Speed)
 ```
+
+The `PKGBUILD` in this repo is the same one the AUR carries: it builds the
+tagged release tarball from GitHub, not your working tree.  To package an
+unreleased change, tag it first.  Releasing:
+
+```sh
+git tag -a v1.2.3 -m 'quickkey 1.2.3' && git push origin v1.2.3
+rm -f *.tar.gz && updpkgsums          # a cached tarball will be re-hashed
+makepkg --printsrcinfo > .SRCINFO     # the AUR rejects a stale .SRCINFO
+```
+
+then commit `PKGBUILD` and `.SRCINFO` to the AUR repo.
 
 ### Anywhere else
 

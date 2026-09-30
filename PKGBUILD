@@ -17,7 +17,7 @@ optdepends=(
   'wl-clipboard: clipboard support under Wayland'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('88e00680b04e7b85398d4a3c3346fc526f5dcc34d4a55f6a102bc1ef3b5e96c7')
+sha256sums=('9d922defb097e0e9db0920f8cd28fa86ff28cbd9707ea5d79f46e9c3c30b0ac9')
 
 check() {
   cd "$pkgname-$pkgver"

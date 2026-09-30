@@ -1,5 +1,7 @@
 # quickkey
 
+*(said like "quickie")*
+
 A keystroke-launched menu of commands.  Hit your hotkey, a small window pops
 up, you pick an entry by clicking or typing, the command runs, and its stdout
 is waiting on your clipboard.

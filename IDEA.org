@@ -1,0 +1,10 @@
+I want a simple Python tool that when it starts, it reads a config
+file with a simple format with two entries:
+
+Name
+Command
+
+It shows a simple menu accessible via keyboard and mouse navigation of
+the list of Name values. When a Name is selected via click or
+keystroke, the Command is executed and its stdout is placed into the
+clipboard for pasting later.

@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+# Nothing to compile: install the script under its command name, the user
+# unit, and the fallback config.
+override_dh_auto_build:
+override_dh_auto_install:
+	install -Dm755 quickkey.py debian/quickkey/usr/bin/quickkey
+	install -Dm644 quickkey.service \
+		debian/quickkey/usr/lib/systemd/user/quickkey.service
+	install -Dm644 quickkey.conf \
+		debian/quickkey/usr/share/quickkey/quickkey.conf
+
+override_dh_auto_test:
+	python3 -c "import ast; ast.parse(open('quickkey.py').read())"
+	python3 quickkey.py --config quickkey.conf --list >/dev/null
+
+# dh_installsystemd handles system units; this is a user unit, and enabling
+# it is the user's call, so leave it installed but untouched.
+override_dh_installsystemduser:

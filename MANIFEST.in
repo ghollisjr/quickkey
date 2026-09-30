@@ -1,0 +1,5 @@
+include quickkey.conf
+include quickkey.service
+include LICENSE
+include README.org
+graft docs

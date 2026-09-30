@@ -9,3 +9,15 @@ __pycache__/
 # editor backups
 .emacs_backups/
 *~
+
+# python build artifacts
+/dist/
+/build/
+*.egg-info/
+
+# debian build artifacts
+/debian/quickkey/
+/debian/files
+/debian/*.substvars
+/debian/*.debhelper
+/debian/debhelper-build-stamp

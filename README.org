@@ -46,6 +46,34 @@ makepkg --printsrcinfo > .SRCINFO     # the AUR rejects a stale .SRCINFO
 
 then commit =PKGBUILD= and =.SRCINFO= to the AUR repo.
 
+*** Debian / Ubuntu
+Build the =.deb= from a checkout:
+
+#+begin_src sh
+sudo apt install build-essential debhelper devscripts
+dpkg-buildpackage -us -uc -b
+sudo apt install ../quickkey_1.0.0-1_all.deb
+#+end_src
+
+Same layout as the Arch package.  =python3-tk= is a hard dependency:
+Debian splits tkinter out of =python3=, and without it the program cannot
+start.
+
+*** Any platform, with pip
+The PyPI distribution is =quickkey-menu=, because =quickkey= was already
+taken by an unrelated project.  The installed command is still =quickkey=:
+
+#+begin_src sh
+pipx install quickkey-menu      # or: pip install --user quickkey-menu
+#+end_src
+
+Two things pip cannot do for you.  It installs no config, so create
+=~/.config/quickkey/config= yourself (see [[*Config][Config]]); and it cannot
+install tkinter, which many distros package separately -- =python3-tk= on
+Debian and Ubuntu, =python3-tkinter= on Fedora, =tk= on Arch.  No systemd
+unit is installed either; copy =quickkey.service= from the repo and point
+=ExecStart= at the installed =quickkey=.
+
 *** Anywhere else
 There is nothing to build -- drop =quickkey.py= somewhere on your =PATH=.
 

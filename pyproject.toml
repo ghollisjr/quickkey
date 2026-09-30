@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quickkey-menu"
+version = "1.0.0"
+description = "Hotkey menu of commands whose output goes to the clipboard"
+# PyPI renders only markdown, rst and plain text -- not org -- so the README
+# is carried verbatim rather than rendered.
+readme = { file = "README.org", content-type = "text/plain" }
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "ghollisjr", email = "ghollisjr@gmail.com" }]
+keywords = ["clipboard", "launcher", "hotkey", "menu", "tkinter"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: X11 Applications",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Desktop Environment",
+  "Topic :: Utilities",
+]
+# No install_requires: the app is standard library only.  tkinter ships with
+# CPython but many Linux distros split it into a separate OS package, and
+# that cannot be expressed as a PyPI dependency -- see the README.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ghollisjr/quickkey"
+Source = "https://github.com/ghollisjr/quickkey"
+Issues = "https://github.com/ghollisjr/quickkey/issues"
+
+[project.scripts]
+quickkey = "quickkey:main"
+
+[tool.setuptools]
+py-modules = ["quickkey"]

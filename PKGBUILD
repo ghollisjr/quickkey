@@ -16,29 +16,17 @@ optdepends=(
   'xsel: clipboard support under X11, alternative to xclip'
   'wl-clipboard: clipboard support under Wayland'
 )
-# Built straight from this directory -- there is no release tarball yet.
-# Re-run `updpkgsums` after editing any of these.
-source=(
-  'quickkey.py'
-  'quickkey.conf'
-  'quickkey.service'
-  'README.md'
-  'LICENSE'
-)
-sha256sums=('32adabf39614e7371e91f9b46a5d6e7b5715df13ec36d0a82a5b085ce9a02469'
-            'c98a57f230f6334178c09ba6e91cda3af3cb1a557497bb0a49892a04623bc741'
-            'e71fac3043b03c2c25a7e1804f7a5bbc4100828a60701cfe190292caa9d93da0'
-            '13e08c47437e40875a0e6dc15f89e13a1a7b12b11410dd0be0221075121b4e7b'
-            '0fb5c41305e448dc1350b077e889ce87eb2a6b34518266756219499c51ebff73')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('88e00680b04e7b85398d4a3c3346fc526f5dcc34d4a55f6a102bc1ef3b5e96c7')
 
 check() {
-  cd "$srcdir"
+  cd "$pkgname-$pkgver"
   python -c "import ast; ast.parse(open('quickkey.py').read())"
   python quickkey.py --config quickkey.conf --list >/dev/null
 }
 
 package() {
-  cd "$srcdir"
+  cd "$pkgname-$pkgver"
 
   install -Dm755 quickkey.py "$pkgdir/usr/bin/$pkgname"
 

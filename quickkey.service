@@ -7,7 +7,7 @@
 
 [Unit]
 Description=quickkey clipboard command menu
-Documentation=file:/usr/share/doc/quickkey/README.md
+Documentation=https://github.com/ghollisjr/quickkey
 # the daemon builds a window at startup, so it needs a display to exist.
 # This is ordering only -- plenty of X sessions never activate the target.
 After=graphical-session.target

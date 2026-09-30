@@ -38,6 +38,8 @@ package() {
   # to ~/.config/quickkey/config to make it yours
   install -Dm644 quickkey.conf "$pkgdir/usr/share/$pkgname/quickkey.conf"
 
-  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  # glob, not a fixed name: the README was README.md up to v1.0.0 and is
+  # README.org after it, and this PKGBUILD has to build either tarball
+  install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" README.*
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

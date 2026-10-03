@@ -110,12 +110,23 @@ def load_entries(path: str) -> list[tuple[str, str]]:
 # clipboard
 # --------------------------------------------------------------------------
 
+# X11 has two independent selections and applications disagree about which
+# one "paste" means: CLIPBOARD is Ctrl-V, PRIMARY is middle-click and the
+# Shift-Insert that urxvt, xterm and friends use.  Writing only CLIPBOARD
+# leaves those terminals pasting whatever stale text PRIMARY still held, so
+# by default we set both.  Wayland mirrors the same split; macOS and Windows
+# have only the one clipboard.
+SELECTIONS = ("clipboard", "primary")
+
 CLIPBOARD_TOOLS = [
-    ("wl-copy", ["wl-copy"]),
-    ("xclip", ["xclip", "-selection", "clipboard"]),
-    ("xsel", ["xsel", "--clipboard", "--input"]),
-    ("pbcopy", ["pbcopy"]),
-    ("clip.exe", ["clip.exe"]),
+    ("wl-copy", {"clipboard": ["wl-copy"],
+                 "primary": ["wl-copy", "--primary"]}),
+    ("xclip", {"clipboard": ["xclip", "-selection", "clipboard"],
+               "primary": ["xclip", "-selection", "primary"]}),
+    ("xsel", {"clipboard": ["xsel", "--clipboard", "--input"],
+              "primary": ["xsel", "--primary", "--input"]}),
+    ("pbcopy", {"clipboard": ["pbcopy"]}),
+    ("clip.exe", {"clipboard": ["clip.exe"]}),
 ]
 
 _clipboard_cache: list[str] | None | bool = False
@@ -130,44 +141,61 @@ def which(program: str) -> str | None:
     return None
 
 
-def clipboard_command() -> list[str] | None:
+def clipboard_command() -> dict[str, list[str]] | None:
+    """The per-selection argv table for the first helper we can find."""
     global _clipboard_cache
     if _clipboard_cache is False:
         _clipboard_cache = None
-        for program, command in CLIPBOARD_TOOLS:
+        for program, commands in CLIPBOARD_TOOLS:
             if which(program):
-                _clipboard_cache = command
+                _clipboard_cache = commands
                 break
     return _clipboard_cache
 
 
-def copy_to_clipboard(text: str) -> None:
-    """Put text on the system clipboard so it survives after we exit.
+def copy_to_clipboard(text: str, selections=SELECTIONS) -> list[str]:
+    """Put text on the given X selections so it survives after we exit.
 
     Tk's own clipboard is dropped when the process dies under X11/Wayland,
-    so we hand off to a helper that owns the selection instead.
+    so we hand off to a helper that owns the selection instead.  Returns the
+    selections actually written -- pbcopy and clip.exe have only one.
     """
     import subprocess
 
-    command = clipboard_command()
-    if command is None:
+    commands = clipboard_command()
+    if commands is None:
         raise RuntimeError(
             "no clipboard helper found; install one of: "
             + ", ".join(program for program, _ in CLIPBOARD_TOOLS)
         )
-    # Note: helpers like xclip fork a daemon to own the selection.  That
-    # daemon inherits our pipes, so capturing its output would block until
-    # the clipboard is replaced -- send the streams to /dev/null instead.
-    proc = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    proc.stdin.write(text.encode("utf-8"))
-    proc.stdin.close()
-    if proc.wait() != 0:
-        raise RuntimeError(f"{command[0]} exited with status {proc.returncode}")
+
+    payload = text.encode("utf-8")
+    written = []
+    for selection in selections:
+        command = commands.get(selection)
+        if command is None:
+            continue        # this platform has no such selection
+        # Note: helpers like xclip fork a daemon to own the selection.  That
+        # daemon inherits our pipes, so capturing its output would block
+        # until the selection is replaced -- send the streams to /dev/null.
+        proc = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        proc.stdin.write(payload)
+        proc.stdin.close()
+        if proc.wait() != 0:
+            raise RuntimeError(
+                f"{command[0]} exited with status {proc.returncode} "
+                f"writing the {selection} selection"
+            )
+        written.append(selection)
+
+    if not written:
+        raise RuntimeError("none of the requested selections are supported here")
+    return written
 
 
 # --------------------------------------------------------------------------
@@ -260,11 +288,12 @@ POLL_MS = 5       # only runs while a command is in flight
 
 class QuickKey:
     def __init__(self, entries, *, timeout, keep_open, strip, title,
-                 config_path=None, daemon=False):
+                 config_path=None, daemon=False, selections=SELECTIONS):
         self.entries = entries
         self.timeout = timeout
         self.keep_open = keep_open
         self.strip = strip
+        self.selections = selections
         self.config_path = config_path
         self.daemon = daemon
         self.config_mtime = self.read_mtime()
@@ -507,7 +536,7 @@ class QuickKey:
             text = text.strip("\n")
 
         try:
-            copy_to_clipboard(text)
+            written = copy_to_clipboard(text, self.selections)
         except RuntimeError as exc:
             self.set_status(str(exc), ERR)
             self.exit_code = 1
@@ -524,7 +553,8 @@ class QuickKey:
         self.filter_var.set("")
         self.set_status(
             f"copied {chars} char{'s' if chars != 1 else ''} "
-            f"({lines} line{'s' if lines != 1 else ''}) from “{result.name}”",
+            f"({lines} line{'s' if lines != 1 else ''}) from “{result.name}”"
+            f" to {' + '.join(written)}",
             OK,
         )
 
@@ -601,6 +631,7 @@ class Options:
     timeout = 30.0
     strip = True
     title = APP_NAME
+    selections = SELECTIONS
     daemon = False
     no_daemon = False
     list_only = False
@@ -624,6 +655,10 @@ def parse_args(argv: list[str]) -> Options:
                         help="seconds to let a command run (default: 30, 0 for none)")
     parser.add_argument("--no-strip", action="store_true",
                         help="keep leading/trailing newlines in the copied output")
+    parser.add_argument("--selection", choices=("both", "clipboard", "primary"),
+                        default="both",
+                        help="which X selection to write (default: both; "
+                             "PRIMARY is what middle-click and Shift-Insert paste)")
     parser.add_argument("--daemon", action="store_true",
                         help="stay resident and pop up when a later run wakes it")
     parser.add_argument("--no-daemon", action="store_true",
@@ -639,6 +674,8 @@ def parse_args(argv: list[str]) -> Options:
     options.timeout = args.timeout
     options.strip = not args.no_strip
     options.title = args.title
+    options.selections = (SELECTIONS if args.selection == "both"
+                          else (args.selection,))
     options.daemon = args.daemon
     options.no_daemon = args.no_daemon
     options.list_only = args.list_only
@@ -693,6 +730,7 @@ def main(argv: list[str] | None = None) -> int:
         title=options.title,
         config_path=config,
         daemon=options.daemon,
+        selections=options.selections,
     )
     if server is not None:
         app.serve(server)

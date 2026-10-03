@@ -77,6 +77,14 @@ unit is installed either; copy =quickkey.service= from the repo and point
 *** Anywhere else
 There is nothing to build -- drop =quickkey.py= somewhere on your =PATH=.
 
+** Tests
+=tests/regress.py= drives the real Tk widgets and the real clipboard, so it
+needs a display.  On a headless machine:
+
+#+begin_src sh
+xvfb-run -a python3 tests/regress.py
+#+end_src
+
 ** Config
 INI format. Each section name is what shows up in the menu; =command= is run
 through the shell.
@@ -205,6 +213,8 @@ running the script.
 ** Options
 #+begin_example
 -c, --config PATH   use this config file
+    --selection S   which X selection to write: both (default), clipboard,
+                    or primary
     --daemon        stay resident; later bare runs pop this window up
     --no-daemon     draw our own window even if a daemon is running
 -k, --keep-open     stay open after copying instead of exiting
@@ -215,6 +225,17 @@ running the script.
 #+end_example
 
 ** Notes
+X11 has two independent selections, and applications disagree about which
+one "paste" means.  =CLIPBOARD= is what Ctrl-V reads; =PRIMARY= is what
+middle-click pastes, and what =Shift-Insert= reads in rxvt-unicode, xterm
+and most other terminals.  quickkey writes *both* by default, so the same
+copy works whichever one the target application asks for.
+
+If you would rather it left your mouse selection alone, =--selection
+clipboard= writes only =CLIPBOARD=.  The status line in =-k= mode names
+the selections it wrote.  On macOS and Windows there is only one
+clipboard, and the extra selection is skipped.
+
 Nothing is printed on the way out -- on a successful copy the window just
 goes, since a confirmation you cannot read before it disappears is only a
 flash. Run with =-k= if you want to see what was copied.

@@ -1,7 +1,7 @@
 # Maintainer: ghollisjr <ghollisjr@gmail.com>
 
 pkgname=quickkey
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc='Hotkey menu of commands whose output goes to the clipboard'
 arch=('any')

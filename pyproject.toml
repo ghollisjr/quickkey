@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quickkey-menu"
-version = "1.0.0"
+version = "1.1.0"
 description = "Hotkey menu of commands whose output goes to the clipboard"
 # PyPI renders only markdown, rst and plain text -- not org -- so the README
 # is carried verbatim rather than rendered.

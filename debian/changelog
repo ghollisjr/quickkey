@@ -5,7 +5,7 @@ quickkey (1.2.0-1) unstable; urgency=medium
     multi-monitor setup.
   * New --monitor option (active, primary, all).
 
- -- ghollisjr <ghollisjr@gmail.com>  Mon, 20 Oct 2026 22:10:00 -0400
+ -- ghollisjr <ghollisjr@gmail.com>  Tue, 20 Oct 2026 22:10:00 -0400
 
 quickkey (1.1.0-1) unstable; urgency=medium
 

@@ -18,7 +18,7 @@ optdepends=(
   'xorg-xrandr: place the window on the monitor under the pointer'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('6028b8d8ab975e292f80309fa64f58bd1403b464341475a43a485837117b6188')
+sha256sums=('79c034b02b36ab1d6d44dcb7a4be7539a370d9bb793a3a85a13278a3f77bc032')
 
 check() {
   cd "$pkgname-$pkgver"

@@ -21,3 +21,6 @@ __pycache__/
 /debian/*.substvars
 /debian/*.debhelper
 /debian/debhelper-build-stamp
+
+# working notes
+handoff-*.md

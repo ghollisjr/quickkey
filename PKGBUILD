@@ -15,6 +15,7 @@ optdepends=(
   'xclip: clipboard support under X11'
   'xsel: clipboard support under X11, alternative to xclip'
   'wl-clipboard: clipboard support under Wayland'
+  'xorg-xrandr: place the window on the monitor under the pointer'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('6028b8d8ab975e292f80309fa64f58bd1403b464341475a43a485837117b6188')

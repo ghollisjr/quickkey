@@ -213,6 +213,8 @@ running the script.
 ** Options
 #+begin_example
 -c, --config PATH   use this config file
+    --monitor M     which monitor to appear on: active (default, follows
+                    the mouse pointer), primary, or all
     --selection S   which X selection to write: both (default), clipboard,
                     or primary
     --daemon        stay resident; later bare runs pop this window up
@@ -225,6 +227,22 @@ running the script.
 #+end_example
 
 ** Notes
+On a multi-monitor setup the window appears on the monitor holding the
+mouse pointer.  Tk only knows the size of the whole X display, so centring
+in it used to land the window near the seam between monitors -- in
+practice, on whichever monitor you were not using.
+
+Finding the right monitor needs =xrandr=, and =xrandr --listmonitors=
+costs around 110ms on a real display: five times the daemon's whole wake
+time.  So it never runs while you are waiting for the window.  The layout
+is cached, in memory and in a small file under =$XDG_RUNTIME_DIR=, and
+refreshed on a background thread.  Plug in a monitor and the first press
+afterwards may still use the old layout; the one after it will not.
+
+=--monitor primary= pins the window to the monitor X marks primary, and
+=--monitor all= restores the old centre-across-everything behaviour.  With
+one monitor all three are identical.
+
 X11 has two independent selections, and applications disagree about which
 one "paste" means.  =CLIPBOARD= is what Ctrl-V reads; =PRIMARY= is what
 middle-click pastes, and what =Shift-Insert= reads in rxvt-unicode, xterm

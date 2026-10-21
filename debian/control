@@ -12,7 +12,7 @@ Architecture: all
 # python3-tk is Debian's name for tkinter; python3 alone does not pull it in
 Depends: ${misc:Depends}, python3, python3-tk
 Recommends: xclip
-Suggests: xsel, wl-clipboard
+Suggests: xsel, wl-clipboard, x11-xserver-utils
 Description: hotkey menu of commands whose output goes to the clipboard
  quickkey pops up a small window listing commands from a config file.
  Pick one by clicking or typing, the command runs, and its standard

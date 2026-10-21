@@ -228,6 +228,144 @@ def run_command(name: str, command: str, timeout: float | None) -> Result:
 
 
 # --------------------------------------------------------------------------
+# monitors
+# --------------------------------------------------------------------------
+
+# Tk reports the whole X display, so centring in it lands near the seam
+# between monitors on a multi-head setup -- usually not where you are
+# working.  The pointer tells us which monitor that is; xrandr tells us
+# where the monitors are.
+#
+# The catch is cost: winfo_pointerx() is ~0.05ms, but `xrandr
+# --listmonitors` measures ~110ms on a real display, which is five times the
+# daemon's whole wake time.  So xrandr NEVER runs on the path to showing the
+# window.  The layout is cached (in memory, and in a file so one-shot runs
+# benefit too) and refreshed on a worker thread; an invocation that finds no
+# usable cache just centres the old way and leaves a good cache behind.
+
+_monitors: list[dict] | None = None
+_refreshing = False
+
+
+def monitor_cache_path() -> str:
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime and os.path.isdir(runtime):
+        return os.path.join(runtime, f"{APP_NAME}-monitors")
+    return os.path.join("/tmp", f"{APP_NAME}-monitors-{os.getuid()}")
+
+
+def parse_monitors(text: str) -> list[dict]:
+    """Parse `xrandr --listmonitors` output.
+
+    Lines look like:  0: +*HDMI-1 1920/598x1080/336+1920+0  HDMI-1
+    where the * marks the primary monitor.
+    """
+    import re
+
+    rects = []
+    for line in text.splitlines()[1:]:
+        match = re.search(
+            r"^\s*\d+:\s+\+(\*)?\S+\s+(\d+)/\d+x(\d+)/\d+\+(\d+)\+(\d+)", line
+        )
+        if match:
+            star, w, h, x, y = match.groups()
+            rects.append({"x": int(x), "y": int(y), "w": int(w), "h": int(h),
+                          "primary": star == "*"})
+    return rects
+
+
+def query_monitors() -> list[dict]:
+    """Ask X for the monitor layout.  Slow -- never call this inline."""
+    import subprocess
+
+    try:
+        out = subprocess.run(["xrandr", "--listmonitors"], capture_output=True,
+                             text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return parse_monitors(out.stdout) if out.returncode == 0 else []
+
+
+def load_monitors() -> list[dict] | None:
+    """Cached layout, or None when we have never managed to read one."""
+    global _monitors
+    if _monitors is None:
+        try:
+            with open(monitor_cache_path(), encoding="utf-8") as handle:
+                rects = []
+                for line in handle:
+                    x, y, w, h, primary = line.split()
+                    rects.append({"x": int(x), "y": int(y), "w": int(w),
+                                  "h": int(h), "primary": primary == "1"})
+            _monitors = rects or None
+        except (OSError, ValueError):
+            _monitors = None
+    return _monitors
+
+
+def store_monitors(rects: list[dict]) -> None:
+    global _monitors
+    _monitors = rects or None
+    if not rects:
+        return
+    try:
+        path = monitor_cache_path()
+        with open(path, "w", encoding="utf-8") as handle:
+            for r in rects:
+                handle.write(f"{r['x']} {r['y']} {r['w']} {r['h']} "
+                             f"{1 if r['primary'] else 0}\n")
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def refresh_monitors() -> None:
+    """Re-read the layout on a worker thread, for the *next* invocation.
+
+    Not a daemon thread: a one-shot run exits moments after copying, and we
+    want the cache written even then.  It costs nothing visible, since by
+    then the window is already gone.
+    """
+    global _refreshing
+    if _refreshing:
+        return
+    import threading
+
+    _refreshing = True
+
+    def work():
+        global _refreshing
+        try:
+            store_monitors(query_monitors())
+        finally:
+            _refreshing = False
+
+    threading.Thread(target=work, daemon=False).start()
+
+
+def monitor_for(px: int, py: int, mode: str) -> dict | None:
+    """The monitor to place the window on, or None to centre on the display."""
+    if mode == "all":
+        return None
+    rects = load_monitors()
+    if not rects:
+        refresh_monitors()      # nothing cached yet; be right next time
+        return None
+    if mode == "primary":
+        for rect in rects:
+            if rect["primary"]:
+                return rect
+        return rects[0]
+    for rect in rects:
+        if (rect["x"] <= px < rect["x"] + rect["w"]
+                and rect["y"] <= py < rect["y"] + rect["h"]):
+            return rect
+    # the pointer is somewhere we do not know about, so the layout changed
+    refresh_monitors()
+    return None
+
+
+# --------------------------------------------------------------------------
 # daemon socket
 # --------------------------------------------------------------------------
 
@@ -288,12 +426,14 @@ POLL_MS = 5       # only runs while a command is in flight
 
 class QuickKey:
     def __init__(self, entries, *, timeout, keep_open, strip, title,
-                 config_path=None, daemon=False, selections=SELECTIONS):
+                 config_path=None, daemon=False, selections=SELECTIONS,
+                 monitor_mode="active"):
         self.entries = entries
         self.timeout = timeout
         self.keep_open = keep_open
         self.strip = strip
         self.selections = selections
+        self.monitor_mode = monitor_mode
         self.config_path = config_path
         self.daemon = daemon
         self.config_mtime = self.read_mtime()
@@ -387,12 +527,29 @@ class QuickKey:
         self.listbox.bind("<Key>", lambda _e: self.entry.focus_set())
 
     def place_window(self) -> None:
+        """Centre on the monitor under the pointer, falling back to the display.
+
+        Called on every show, not just at construction: in daemon mode the
+        window is built once and the pointer may be on a different monitor
+        each time the hotkey fires.
+        """
         width = 460
         height = 96 + 24 * max(3, min(len(self.entries), 14))
-        screen_w = self.root.winfo_screenwidth()
-        screen_h = self.root.winfo_screenheight()
-        x = max(0, (screen_w - width) // 2)
-        y = max(0, (screen_h - height) // 3)
+
+        # ~0.05ms, unlike the xdotool call this replaces
+        rect = monitor_for(self.root.winfo_pointerx(),
+                           self.root.winfo_pointery(),
+                           self.monitor_mode)
+        if rect is None:
+            origin_x, origin_y = 0, 0
+            area_w = self.root.winfo_screenwidth()
+            area_h = self.root.winfo_screenheight()
+        else:
+            origin_x, origin_y = rect["x"], rect["y"]
+            area_w, area_h = rect["w"], rect["h"]
+
+        x = origin_x + max(0, (area_w - width) // 2)
+        y = origin_y + max(0, (area_h - height) // 3)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def present(self) -> None:
@@ -575,8 +732,13 @@ class QuickKey:
         self.reload_if_changed()
         self.filter_var.set("")
         self.refresh()
+        # before deiconify: the pointer may be on a different monitor than it
+        # was when this window was built, or the last time it was shown
+        self.place_window()
         self.root.deiconify()
         self.present()
+        if self.daemon:
+            refresh_monitors()      # keep the cache warm for the next press
 
     def serve(self, server: socket.socket) -> None:
         """Hook the listening socket straight into Tk's event loop.
@@ -632,6 +794,7 @@ class Options:
     strip = True
     title = APP_NAME
     selections = SELECTIONS
+    monitor_mode = "active"
     daemon = False
     no_daemon = False
     list_only = False
@@ -659,6 +822,12 @@ def parse_args(argv: list[str]) -> Options:
                         default="both",
                         help="which X selection to write (default: both; "
                              "PRIMARY is what middle-click and Shift-Insert paste)")
+    parser.add_argument("--monitor", choices=("active", "primary", "all"),
+                        default="active", dest="monitor_mode",
+                        help="which monitor to appear on: active follows the "
+                             "mouse pointer (default), primary is the monitor "
+                             "X marks primary, all centres across the whole "
+                             "display (the old behaviour)")
     parser.add_argument("--daemon", action="store_true",
                         help="stay resident and pop up when a later run wakes it")
     parser.add_argument("--no-daemon", action="store_true",
@@ -676,6 +845,7 @@ def parse_args(argv: list[str]) -> Options:
     options.title = args.title
     options.selections = (SELECTIONS if args.selection == "both"
                           else (args.selection,))
+    options.monitor_mode = args.monitor_mode
     options.daemon = args.daemon
     options.no_daemon = args.no_daemon
     options.list_only = args.list_only
@@ -731,6 +901,7 @@ def main(argv: list[str] | None = None) -> int:
         config_path=config,
         daemon=options.daemon,
         selections=options.selections,
+        monitor_mode=options.monitor_mode,
     )
     if server is not None:
         app.serve(server)

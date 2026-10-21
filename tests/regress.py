@@ -76,6 +76,44 @@ check("config reloaded", [app.listbox.get(i).strip() for i in range(app.listbox.
       ["1. Alpha", "2. Gamma"])
 app.root.destroy(); os.unlink(S2); os.unlink(C2)
 
+print("6. multi-monitor positioning")
+# a 2560x1440 monitor at the origin, a 1920x1080 primary to its right
+LAYOUT = [{"x": 0, "y": 0, "w": 2560, "h": 1440, "primary": False},
+          {"x": 2560, "y": 0, "w": 1920, "h": 1080, "primary": True}]
+check("parses xrandr --listmonitors", qk.parse_monitors(
+    "Monitors: 2\n"
+    " 0: +DP-2 2560/697x1440/392+0+0  DP-2\n"
+    " 1: +*HDMI-1 1920/598x1080/336+2560+0  HDMI-1"), LAYOUT)
+
+qk._monitors = LAYOUT                       # pretend the cache is warm
+check("pointer on left monitor",  qk.monitor_for(100, 100, "active"), LAYOUT[0])
+check("pointer on right monitor", qk.monitor_for(3000, 500, "active"), LAYOUT[1])
+check("exact seam goes right",    qk.monitor_for(2560, 0, "active"), LAYOUT[1])
+check("last pixel stays left",    qk.monitor_for(2559, 0, "active"), LAYOUT[0])
+check("primary mode",             qk.monitor_for(100, 100, "primary"), LAYOUT[1])
+check("all mode centres on display", qk.monitor_for(100, 100, "all"), None)
+check("pointer off every monitor", qk.monitor_for(9999, 9999, "active"), None)
+
+# the geometry the window actually asks for, per mode
+def placed(mode, px, py):
+    app = qk.QuickKey([("A", "true")], timeout=5, keep_open=True, strip=True,
+                      title="t", monitor_mode=mode)
+    app.root.winfo_pointerx = lambda: px
+    app.root.winfo_pointery = lambda: py
+    qk._monitors = LAYOUT
+    app.place_window(); app.root.update_idletasks()
+    geom = app.root.geometry(); app.root.destroy()
+    return geom
+
+w, h = 460, 96 + 24*3
+check("placed on left monitor",  placed("active", 100, 100),
+      f"{w}x{h}+{(2560-w)//2}+{(1440-h)//3}")
+check("placed on right monitor", placed("active", 3000, 500),
+      f"{w}x{h}+{2560+(1920-w)//2}+{(1080-h)//3}")
+check("placed on primary",       placed("primary", 100, 100),
+      f"{w}x{h}+{2560+(1920-w)//2}+{(1080-h)//3}")
+qk._monitors = None
+
 print()
 print("ALL PASS" if not fails else "FAILURES:\n  " + "\n  ".join(fails))
 sys.exit(1 if fails else 0)

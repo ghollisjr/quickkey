@@ -1,3 +1,12 @@
+quickkey (1.3.0-1) unstable; urgency=medium
+
+  * A command ending in & is launched and forgotten: no waiting, no output
+    capture, no clipboard write, and the picker closes immediately.  Long
+    lived programs such as libreoffice previously held the window open
+    until they exited or the timeout fired.
+
+ -- ghollisjr <ghollisjr@gmail.com>  Sun, 25 Oct 2026 12:00:00 -0400
+
 quickkey (1.2.0-1) unstable; urgency=medium
 
   * Place the picker on the monitor under the mouse pointer, instead of

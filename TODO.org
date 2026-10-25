@@ -1,0 +1,28 @@
+#+TITLE: quickkey TODO
+
+Loose ends, roughly in the order they are worth doing.  Nothing here blocks
+a release.
+
+* Low priority
+** Publish to PyPI
+=quickkey-menu= is built and =twine check= passes for both the wheel and the
+sdist, but nothing has ever been uploaded, so the name is still unclaimed and
+=pip install quickkey-menu= does not work.  Deliberately parked: the author
+does not use PyPI and has no API token for it.
+
+To pick it back up: get a token from https://pypi.org/manage/account/token/,
+then from a tree at the release tag
+
+#+begin_src sh
+python3 -m build
+twine check dist/*
+twine upload dist/*          # TestPyPI first -- a version can never be reused
+#+end_src
+
+and drop the "not published" caveat from the install section of the README.
+
+** Write a man page
+The only warning =lintian= still reports against the =.deb= is
+=no-manual-page=.  A =quickkey.1= would silence it and give =man quickkey=
+something to show; the Options section of the README is most of the content
+already.

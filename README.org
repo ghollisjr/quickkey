@@ -60,12 +60,17 @@ Debian splits tkinter out of =python3=, and without it the program cannot
 start.
 
 *** Any platform, with pip
-The PyPI distribution is =quickkey-menu=, because =quickkey= was already
-taken by an unrelated project.  The installed command is still =quickkey=:
+*Not published yet* -- see [[file:TODO.org][TODO.org]].  The distribution is
+built and ready under the name =quickkey-menu=, because =quickkey= was
+already taken by an unrelated project, but nothing has been uploaded to PyPI,
+so for now install from a checkout instead:
 
 #+begin_src sh
-pipx install quickkey-menu      # or: pip install --user quickkey-menu
+pipx install .                  # or: pip install --user .
 #+end_src
+
+Once it is on PyPI that becomes =pipx install quickkey-menu=.  Either way the
+installed command is =quickkey=.
 
 Two things pip cannot do for you.  It installs no config, so create
 =~/.config/quickkey/config= yourself (see [[*Config][Config]]); and it cannot

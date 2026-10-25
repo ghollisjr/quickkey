@@ -20,9 +20,3 @@ twine upload dist/*          # TestPyPI first -- a version can never be reused
 #+end_src
 
 and drop the "not published" caveat from the install section of the README.
-
-** Write a man page
-The only warning =lintian= still reports against the =.deb= is
-=no-manual-page=.  A =quickkey.1= would silence it and give =man quickkey=
-something to show; the Options section of the README is most of the content
-already.

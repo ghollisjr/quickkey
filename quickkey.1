@@ -1,0 +1,286 @@
+.\" Manual page for quickkey.
+.TH QUICKKEY 1 "2026-10-25" "quickkey 1.3.0" "User Commands"
+.
+.SH NAME
+quickkey \- pop up a menu of commands and copy the output of the one you pick
+.
+.SH SYNOPSIS
+.SY quickkey
+.OP \-c file
+.OP \-k
+.OP \-t seconds
+.OP \-\-no\-strip
+.OP \-\-selection both|clipboard|primary
+.OP \-\-monitor active|primary|all
+.OP \-\-daemon
+.OP \-\-no\-daemon
+.OP \-\-list
+.OP \-\-title title
+.YS
+.
+.SH DESCRIPTION
+.B quickkey
+(said like \[lq]quickie\[rq]) reads a config file of named commands, shows them
+in a small window you can drive from the keyboard or the mouse, and puts the
+standard output of whichever one you choose onto the clipboard.  Then it gets
+out of the way.
+.PP
+It is meant to be bound to a hotkey, so it is built for the hundred
+milliseconds after that key press rather than for a long session: no
+splash, no confirmation you have to dismiss, and no startup work that can be
+deferred.  See
+.B SPEED
+below for the resident daemon, which cuts the whole round trip to about 20ms.
+.PP
+Typing filters the list.  A bare digit ranks the entry at that position in the
+config first, so
+.B 4
+then
+.B Return
+runs the fourth entry whatever it is called.  The numbers shown are config
+positions and never change as you filter, so the one you reach for is the one
+you saw.
+.
+.SH OPTIONS
+.TP
+.BI \-c " file" "\fR, \fP" \-\-config " file"
+Read
+.I file
+instead of searching the usual places.  It is an error if it does not exist.
+.TP
+.B "\-k, \-\-keep\-open"
+Stay open after copying, and report what was copied in the status line,
+instead of exiting.  Useful for grabbing several things in a row.
+.TP
+.BI \-t " seconds" "\fR, \fP" \-\-timeout " seconds"
+Give a command this long to finish (default 30).
+.B 0
+removes the limit.  A command that runs over is killed and reported; nothing
+is copied.
+.TP
+.B \-\-no\-strip
+Keep the leading and trailing newlines of the output.  By default they are
+stripped, since a command substitution would have dropped the final one
+anyway and a stray newline in a paste is rarely what you want.
+.TP
+.BI \-\-selection " both" "\fR|\fP" clipboard "\fR|\fP" primary
+Which X selection to write (default
+.BR both ).
+.B CLIPBOARD
+is what \fBCtrl\-V\fP pastes;
+.B PRIMARY
+is what middle\-click and \fBShift\-Insert\fP paste, which is what
+.BR urxvt (1)
+and
+.BR xterm (1)
+use.  Writing only one of them is a good way to be surprised by an
+application that reads the other.
+.TP
+.BI \-\-monitor " active" "\fR|\fP" primary "\fR|\fP" all
+Which monitor to appear on.
+.B active
+(default) follows the mouse pointer,
+.B primary
+always uses the monitor X marks primary, and
+.B all
+centres across the whole display \- correct on one monitor, and on several it
+lands near the seam.  Layout comes from
+.BR xrandr (1),
+cached so that it never runs on the path to showing the window.
+.TP
+.B \-\-daemon
+Stay resident, holding a built window, and pop it up when a later bare
+.B quickkey
+wakes it.  See
+.BR SPEED .
+.TP
+.B \-\-no\-daemon
+Draw a fresh window even when a daemon is running.  Any option at all has
+this effect, since the resident window was built with the daemon's options
+and honouring new ones would mean silently ignoring them.
+.TP
+.B \-\-list
+Print the configured names and commands, then exit.  Does not need a display.
+.TP
+.BI \-\-title " title"
+Set the window title, which is how a window manager rule can recognise the
+window.
+.
+.SH KEYS
+.TP
+.I text
+Filter the list.  A bare digit also ranks that config position first.
+.TP
+.B "Return, KP_Enter"
+Run the selected entry.
+.TP
+.BR Alt\- \fIN\fP
+Run the entry labelled
+.IR N ,
+1 to 9, if the filter still shows it.
+.TP
+.B "Up, Down, Ctrl\-P, Ctrl\-N"
+Move the selection.
+.TP
+.B "PageUp, PageDown"
+Move ten rows.
+.TP
+.B "Home, End"
+First or last entry.
+.TP
+.B "Escape, Ctrl\-C"
+Dismiss.  With a daemon this hides the window; otherwise it exits.
+.TP
+.B Ctrl\-Q
+Quit for real, ending the daemon too.
+.PP
+A single click selects, a double click runs.
+.
+.SH CONFIG
+An INI file.  Each
+.B [section]
+is a name in the menu, and its
+.B command
+is run with the shell:
+.PP
+.EX
+[Public IP]
+command = curl \-s https://ifconfig.me
+
+[UUID]
+command = cat /proc/sys/kernel/random/uuid
+.EE
+.PP
+A command ending in
+.B &
+is launched and forgotten: the window closes at once, nothing is waited for,
+and nothing is copied.  Use it for anything long\-lived, which would otherwise
+hold the window open until it exited.
+.PP
+.EX
+[LibreOffice]
+command = libreoffice &
+.EE
+.PP
+The file is re\-read when it changes, so a daemon picks up edits without a
+restart.
+.
+.SH SPEED
+A cold run is about 58ms, nearly all of it Tk building the window.  Running
+one copy as a daemon moves that cost off the hotkey path: the resident
+process already has the window built, and a bare
+.B quickkey
+then only connects to a socket and exits, without importing
+.B tkinter
+at all \- about 20ms from key press to window.
+.PP
+A systemd user unit ships with the package:
+.PP
+.EX
+systemctl \-\-user enable \-\-now quickkey
+.EE
+.PP
+Bind the hotkey to a plain
+.B quickkey
+with no arguments.  That is the only form that hands off to the daemon.
+.
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/quickkey/config
+The config file, tried first (then
+.IR config.ini ,
+then
+.IR ~/.quickkeyrc ,
+then a
+.I quickkey.conf
+beside the script, then
+.IR /etc/quickkey/config ,
+then
+.IR /usr/share/quickkey/quickkey.conf ).
+.TP
+.I $XDG_RUNTIME_DIR/quickkey.sock
+Where the daemon listens, mode 0600.  Falls back to
+.I /tmp/quickkey\-$UID.sock
+when that path is too long for a Unix socket.
+.TP
+.I $XDG_RUNTIME_DIR/quickkey\-monitors
+Cached monitor layout.  Safe to delete; it is rebuilt in the background.
+.
+.SH ENVIRONMENT
+.TP
+.B QUICKKEY_CONFIG
+Config file to use.  When set, no other location is tried.
+.TP
+.B XDG_CONFIG_HOME
+Base for the default config path, defaulting to
+.IR ~/.config .
+.TP
+.B XDG_RUNTIME_DIR
+Where the socket and the monitor cache live.
+.
+.SH EXIT STATUS
+.TP
+.B 0
+The output was copied, or the window was dismissed without choosing anything.
+.TP
+.B 1
+A command failed, timed out, or could not be run, or the clipboard could not
+be written.  The error stays on screen rather than flashing past, so the
+window does not close.
+.TP
+.B 2
+Bad usage, or no config file was found.
+.
+.SH DEPENDENCIES
+Python 3.10 or newer with
+.BR tkinter ,
+which several distributions package separately
+.RB ( python3\-tk
+on Debian,
+.B python3\-tkinter
+on Fedora,
+.B tk
+on Arch).  Copying needs one of
+.BR xclip (1),
+.BR xsel (1),
+.BR wl\-copy (1),
+.BR pbcopy (1)
+or
+.BR clip.exe ;
+Tk's own clipboard is not enough, because an X selection belongs to a process
+and dies with it.  Multi\-monitor placement uses
+.BR xrandr (1)
+when it is installed.
+.
+.SH EXAMPLES
+Run it the way a hotkey should, handing off to the daemon if one is up:
+.PP
+.EX
+quickkey
+.EE
+.PP
+Grab several values in one visit, keeping only
+.BR PRIMARY :
+.PP
+.EX
+quickkey \-k \-\-selection primary
+.EE
+.PP
+Check a config without a display:
+.PP
+.EX
+QUICKKEY_CONFIG=./quickkey.conf quickkey \-\-list
+.EE
+.
+.SH SEE ALSO
+.BR xclip (1),
+.BR xsel (1),
+.BR wl\-copy (1),
+.BR xrandr (1),
+.BR systemd.unit (5)
+.PP
+.UR https://github.com/ghollisjr/quickkey
+.UE
+.
+.SH AUTHOR
+ghollisjr

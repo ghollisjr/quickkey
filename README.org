@@ -249,6 +249,10 @@ running the script.
     --title TEXT    window title
 #+end_example
 
+=man quickkey= has the same list with more detail, and covers the config
+format, the key bindings, the files and the exit statuses.  From a checkout,
+before installing: =man ./quickkey.1=.
+
 ** Notes
 On a multi-monitor setup the window appears on the monitor holding the
 mouse pointer.  Tk only knows the size of the whole X display, so centring

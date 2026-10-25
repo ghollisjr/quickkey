@@ -145,5 +145,19 @@ check("child ran after window closed", os.path.exists(MARK), True)
 if os.path.exists(MARK): os.unlink(MARK)
 
 print()
+print("8. the man page documents every option")
+# cheap insurance against drift: a new flag that never reaches quickkey.1 is
+# the kind of omission nobody notices until someone reads the man page.
+import re
+HERE = os.path.dirname(os.path.abspath(__file__))
+# roff escapes a literal hyphen as \-, so undo that before matching
+page = open(os.path.join(HERE, "..", "quickkey.1")).read().replace("\\-", "-")
+documented = set(re.findall(r"--[a-z][a-z-]*", page))
+help_text = subprocess.run([sys.executable, os.path.join(HERE, "..", "quickkey.py"),
+                            "--help"], capture_output=True, text=True).stdout
+options = set(re.findall(r"--[a-z][a-z-]*", help_text)) - {"--help"}
+check("undocumented options", sorted(options - documented), [])
+
+print()
 print("ALL PASS" if not fails else "FAILURES:\n  " + "\n  ".join(fails))
 sys.exit(1 if fails else 0)

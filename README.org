@@ -100,6 +100,24 @@ command = cat /proc/sys/kernel/random/uuid
 command = tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 24
 #+end_src
 
+A command ending in =&= is launched and forgotten: quickkey does not wait
+for it, ignores its output, leaves the clipboard alone, and closes
+immediately.  That is what you want for anything that stays running --
+without it, starting =libreoffice= leaves the picker sitting there until
+the command finishes or the timeout expires.
+
+#+begin_src ini
+[LibreOffice]
+command = libreoffice &
+
+[Screenshot in 3s]
+command = sleep 3; import -window root ~/shot.png &
+#+end_src
+
+The whole command is backgrounded, not just the last part of it, so the
+=sleep= above does not hold the window open.  Nothing is reported back:
+a launch that fails does so silently, since there is nobody left to tell.
+
 quickkey looks for the config in this order:
 
 1. =$QUICKKEY_CONFIG=

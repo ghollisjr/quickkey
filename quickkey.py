@@ -210,6 +210,50 @@ class Result:
         self.returncode = returncode
 
 
+def split_background(command: str) -> tuple[str, bool]:
+    """A trailing `&` means fire-and-forget, as it does in a shell.
+
+    `foo &` launches foo detached and we stop caring: no waiting, no output,
+    no clipboard.  `a && b` is untouched -- that is two commands, not a
+    background one, and a command genuinely ending in `&&` is a shell syntax
+    error either way.
+
+    The `&` is stripped here; launch_detached puts the whole command in a
+    backgrounded subshell, so every part of it is detached.
+    """
+    stripped = command.rstrip()
+    if stripped.endswith("&") and not stripped.endswith("&&"):
+        return stripped[:-1].rstrip(), True
+    return command, False
+
+
+def launch_detached(command: str) -> None:
+    """Start a command and walk away.
+
+    The whole command goes into a backgrounded subshell, `( ... ) &`, rather
+    than relying on a trailing `&` in the command itself: in `a; b &` the
+    shell backgrounds only `b`, and waiting on `a` would block the Tk thread
+    and freeze the window.  Wrapped this way the outer shell forks and exits
+    at once, so wait() costs nothing and the real process is reparented to
+    init -- no zombie, which matters since the daemon can outlive hundreds
+    of these.
+
+    start_new_session puts it in its own session so it survives quickkey
+    exiting moments later in one-shot mode.  Every stream goes to /dev/null:
+    nothing reads them, and an inherited pipe is exactly what made xclip hang.
+    """
+    import subprocess
+
+    subprocess.Popen(
+        f"({command}) &",
+        shell=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    ).wait()
+
+
 def run_command(name: str, command: str, timeout: float | None) -> Result:
     import subprocess
 
@@ -651,11 +695,32 @@ class QuickKey:
         import threading
 
         name, command = self.entries[self.visible[index]]
+
+        command, background = split_background(command)
+        if background:
+            return self.launch(name, command)
+
         self.busy = True
         self.result = None
         self.set_status(f"running “{name}” …", DIM)
         threading.Thread(target=self.worker, args=(name, command), daemon=True).start()
         self.poll_job = self.root.after(POLL_MS, self.poll)
+        return "break"
+
+    def launch(self, name: str, command: str) -> str:
+        """Fire-and-forget: no output, no clipboard, window straight away."""
+        try:
+            launch_detached(command)
+        except OSError as exc:
+            self.set_status(f"could not launch “{name}”: {exc}", ERR)
+            self.exit_code = 1
+            return "break"
+
+        if not self.keep_open:
+            self.dismiss()
+            return "break"
+        self.filter_var.set("")
+        self.set_status(f"launched “{name}”", OK)
         return "break"
 
     def worker(self, name: str, command: str) -> None:

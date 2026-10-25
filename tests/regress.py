@@ -114,6 +114,36 @@ check("placed on primary",       placed("primary", 100, 100),
       f"{w}x{h}+{2560+(1920-w)//2}+{(1080-h)//3}")
 qk._monitors = None
 
+print("7. trailing & launches in the background")
+for raw, want in [("libreoffice &", ("libreoffice", True)),
+                  ("libreoffice", ("libreoffice", False)),
+                  ("echo a && echo b", ("echo a && echo b", False)),
+                  ("firefox  &  ", ("firefox", True))]:
+    check(f"split {raw!r}", qk.split_background(raw), want)
+
+MARK = "/tmp/qk-bg-marker"
+if os.path.exists(MARK): os.unlink(MARK)
+subprocess.run(["xclip","-selection","clipboard"], input=b"untouched")
+time.sleep(0.2)
+
+# a command that outlives the picker by a wide margin
+app = qk.QuickKey([("Slow", f"sleep 1.5; touch {MARK} &")], timeout=30,
+                  keep_open=True, strip=True, title="t")
+t0 = time.time()
+app.activate()
+elapsed = time.time() - t0
+check("returns immediately, no 30s wait", elapsed < 0.5, True)
+check("never goes busy", app.busy, False)
+check("status says launched", app.status.cget("text"), "launched “Slow”")
+check("clipboard untouched", clip(), "untouched")
+check("marker not written yet", os.path.exists(MARK), False)
+app.root.destroy()
+
+# the child must survive the picker being gone
+time.sleep(2.0)
+check("child ran after window closed", os.path.exists(MARK), True)
+if os.path.exists(MARK): os.unlink(MARK)
+
 print()
 print("ALL PASS" if not fails else "FAILURES:\n  " + "\n  ".join(fails))
 sys.exit(1 if fails else 0)

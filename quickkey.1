@@ -162,6 +162,18 @@ hold the window open until it exited.
 command = libreoffice &
 .EE
 .PP
+An interactive screen\-capture tool works as a background entry, but mind what
+its selection gesture means.
+.BR scrot (1)
+.B \-s
+takes a rectangle when you
+.I drag,
+and the window under the pointer when you merely
+.I click
+\- and once this window has closed, the thing under the pointer is usually the
+desktop, which is the whole screen.  Drag, or move onto the window you want
+first.
+.PP
 The file is re\-read when it changes, so a daemon picks up edits without a
 restart.
 .

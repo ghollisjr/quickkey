@@ -709,9 +709,21 @@ class QuickKey:
 
     def launch(self, name: str, command: str) -> str:
         """Fire-and-forget: no output, no clipboard, window straight away."""
+        # Off the screen before the child exists, not after: a screenshot tool
+        # started while this window is still mapped photographs it.  withdraw()
+        # plus a flush puts the unmap on the wire now, rather than whenever the
+        # event loop next idles.  In keep-open mode the window was asked to
+        # stay, so it stays.
+        if not self.keep_open:
+            self.root.withdraw()
+            self.root.update_idletasks()
+
         try:
             launch_detached(command)
         except OSError as exc:
+            if not self.keep_open:
+                self.root.deiconify()
+                self.present()
             self.set_status(f"could not launch “{name}”: {exc}", ERR)
             self.exit_code = 1
             return "break"

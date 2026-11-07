@@ -1,7 +1,7 @@
 # Maintainer: ghollisjr <ghollisjr@gmail.com>
 
 pkgname=quickkey
-pkgver=1.3.0
+pkgver=1.4.0
 pkgrel=1
 pkgdesc='Hotkey menu of commands whose output goes to the clipboard'
 arch=('any')
@@ -39,12 +39,7 @@ package() {
   # to ~/.config/quickkey/config to make it yours
   install -Dm644 quickkey.conf "$pkgdir/usr/share/$pkgname/quickkey.conf"
 
-  # tested, not fixed: the man page arrived after v1.3.0 was tagged, and this
-  # PKGBUILD still has to build that tarball.  Drop the test once the oldest
-  # tarball anyone builds has it.
-  if [ -f "$pkgname.1" ]; then
-    install -Dm644 "$pkgname.1" "$pkgdir/usr/share/man/man1/$pkgname.1"
-  fi
+  install -Dm644 "$pkgname.1" "$pkgdir/usr/share/man/man1/$pkgname.1"
 
   # glob, not a fixed name: the README was README.md up to v1.0.0 and is
   # README.org after it, and this PKGBUILD has to build either tarball

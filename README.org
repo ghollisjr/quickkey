@@ -142,7 +142,7 @@ cp quickkey.conf ~/.config/quickkey/config
 ** Keys
 | Key                                | Action                                      |
 |------------------------+------------------------------|
-| type anything                      | filter the list                             |
+| type anything                      | filter the list, fuzzily                    |
 | type a number                      | jump to that entry (=4= puts item 4 on top) |
 | =Up= / =Down=, =Ctrl-p= / =Ctrl-n= | move                                        |
 | =PgUp= / =PgDn=, =Home= / =End=    | jump                                        |
@@ -151,6 +151,16 @@ cp quickkey.conf ~/.config/quickkey/config
 | =Esc=, =Ctrl-q=                    | quit without doing anything                 |
 
 Single click selects, double click runs.
+
+Filtering is fuzzy, and spaces are wildcards: the query splits on them and
+every term has to match somewhere in the name, in any order, so =pass 24=
+finds =Password (24 chars)=. A term matches a run of letters outright, or
+failing that as a subsequence -- its letters in order, gaps allowed -- so =cb=
+finds =Current branch=. Better matches sort first: a term starting a word beats
+one caught inside a word, which beats letters merely scattered in order.
+
+Only the order ever changes. The number beside an entry is its position in the
+config, so =Alt-4= is always the fourth entry no matter what you have typed.
 
 The window closes itself once something is copied. Pass =-k= to keep it open
 for copying several things in a row.

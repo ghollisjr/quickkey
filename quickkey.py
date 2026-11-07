@@ -454,6 +454,62 @@ def listen(path: str) -> socket.socket:
 
 
 # --------------------------------------------------------------------------
+# filtering
+# --------------------------------------------------------------------------
+
+# Spaces are wildcards: the query splits on them and every term has to match
+# somewhere in the name, in any order, so "pass 24" finds "Password (24
+# chars)".  A term matches a run of letters outright, or failing that as a
+# subsequence -- letters in order with gaps -- which is what makes "cb" find
+# "Current branch".  Scores only decide the order; the number beside an entry
+# is its config position and never moves.
+
+
+def term_score(term: str, text: str) -> int | None:
+    """How well one term matches `text` (already lowercased), or None.
+
+    A word it starts beats a hit inside a word, which beats letters merely
+    scattered in order.
+    """
+    at = text.find(term)
+    if at >= 0:
+        score = 60 - min(at, 20)                    # earlier is better
+        if at == 0 or not text[at - 1].isalnum():
+            score += 40                             # start of a word
+        return score
+
+    # subsequence: every letter present, in order, gaps allowed.  Fewer runs
+    # means the letters sat closer together, which reads as a better match.
+    runs = 0
+    previous = -2
+    first = None
+    index = 0
+    for letter in term:
+        found = text.find(letter, index)
+        if found < 0:
+            return None
+        if first is None:
+            first = found
+        if found != previous + 1:
+            runs += 1
+        previous = found
+        index = found + 1
+    return max(1, 30 - 3 * runs - min(first, 10))
+
+
+def match_score(query: str, name: str) -> int | None:
+    """Total score for a whitespace-split query, or None if a term misses."""
+    text = name.lower()
+    total = 0
+    for term in query.lower().split():
+        score = term_score(term, text)
+        if score is None:
+            return None
+        total += score
+    return total
+
+
+# --------------------------------------------------------------------------
 # GUI
 # --------------------------------------------------------------------------
 
@@ -625,8 +681,13 @@ class QuickKey:
     def refresh(self) -> None:
         needle = self.filter_var.get().strip()
         if needle:
-            hits = [i for i, (name, _c) in enumerate(self.entries)
-                    if needle.lower() in name.lower()]
+            scored = []
+            for i, (name, _c) in enumerate(self.entries):
+                score = match_score(needle, name)
+                if score is not None:
+                    scored.append((-score, i))
+            # best first, config order breaking ties
+            hits = [i for _score, i in sorted(scored)]
             # a bare number is the menu position shown next to the entry, so
             # typing it should put that entry on top -- but keep the text
             # matches, since names have digits in them too

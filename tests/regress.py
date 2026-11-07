@@ -144,8 +144,38 @@ time.sleep(2.0)
 check("child ran after window closed", os.path.exists(MARK), True)
 if os.path.exists(MARK): os.unlink(MARK)
 
+print("8. fuzzy filtering: spaces split terms")
+# every term has to match, in any order, and only the ORDER changes -- the
+# number beside an entry stays its config position
+check("spaces split terms", qk.match_score("pass 24", "Password (24 chars)") is not None, True)
+check("order-free", qk.match_score("24 pass", "Password (24 chars)") is not None, True)
+check("a term that misses rejects", qk.match_score("pass zz", "Password (24 chars)"), None)
+check("subsequence matches", qk.match_score("cb", "Current branch") is not None, True)
+check("gibberish misses", qk.match_score("qxz", "Current branch"), None)
+check("whole word beats scattered letters",
+      qk.match_score("ip", "Public IP") > qk.match_score("ip", "Timestamp"), True)
+check("word start beats mid-word",
+      qk.match_score("stamp", "Time stamp") > qk.match_score("stamp", "Timestamp"), True)
+
+app = qk.QuickKey([("One","echo one"),("Two","echo two"),("Three","echo three"),
+                   ("Password (24 chars)","echo pw")],
+                  timeout=5, keep_open=True, strip=True, title="t")
+app.filter_var.set("te"); app.root.update()
+check("fuzzy rows keep config numbers",
+      [app.listbox.get(i).strip() for i in range(app.listbox.size())], ["3. Three"])
+app.filter_var.set("pass 24"); app.root.update()
+check("two terms, one hit",
+      [app.listbox.get(i).strip() for i in range(app.listbox.size())],
+      ["4. Password (24 chars)"])
+app.filter_var.set("   "); app.root.update()
+check("blank query shows everything", app.listbox.size(), 4)
+app.filter_var.set("2"); app.root.update()
+check("a bare digit still pins its position",
+      app.listbox.get(0).strip().startswith("2."), True)
+app.root.destroy()
+
 print()
-print("8. the man page documents every option")
+print("9. the man page documents every option")
 # cheap insurance against drift: a new flag that never reaches quickkey.1 is
 # the kind of omission nobody notices until someone reads the man page.
 import re

@@ -32,14 +32,26 @@ deferred.  See
 .B SPEED
 below for the resident daemon, which cuts the whole round trip to about 20ms.
 .PP
-Typing filters the list.  A bare digit ranks the entry at that position in the
-config first, so
+Typing filters the list, fuzzily.  Spaces are wildcards: the query splits on
+them and every term has to match somewhere in the name, in any order, so
+.B pass 24
+finds
+.BR "Password (24 chars)" .
+A term matches a run of letters outright, or failing that as a subsequence \-
+its letters in order with gaps allowed \- so
+.B cb
+finds
+.BR "Current branch" .
+Better matches sort first: a term that starts a word beats one caught inside a
+word, which beats letters merely scattered in order.
+.PP
+A bare digit ranks the entry at that position in the config first, so
 .B 4
 then
 .B Return
-runs the fourth entry whatever it is called.  The numbers shown are config
-positions and never change as you filter, so the one you reach for is the one
-you saw.
+runs the fourth entry whatever it is called.  Only the order ever changes: the
+numbers shown are config positions, so the one you reach for is the one you
+saw.
 .
 .SH OPTIONS
 .TP
@@ -109,7 +121,8 @@ window.
 .SH KEYS
 .TP
 .I text
-Filter the list.  A bare digit also ranks that config position first.
+Filter the list fuzzily; spaces split it into terms that must all match.  A
+bare digit also ranks that config position first.
 .TP
 .B "Return, KP_Enter"
 Run the selected entry.

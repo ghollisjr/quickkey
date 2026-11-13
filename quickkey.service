@@ -12,16 +12,22 @@ Documentation=https://github.com/ghollisjr/quickkey
 # This is ordering only -- plenty of X sessions never activate the target.
 After=graphical-session.target
 PartOf=graphical-session.target
-# if the display is not up yet, keep retrying past the default 5-in-10s cap
-StartLimitIntervalSec=60
-StartLimitBurst=10
+# The user manager comes up at login, which on a startx session is minutes
+# before X exists, and a daemon with no $DISPLAY exits 1.  Retrying is the
+# only way back: a service's environment is captured when it starts, so the
+# DISPLAY that /etc/X11/xinit/xinitrc.d/50-systemd-user.sh imports into the
+# manager reaches this unit on its NEXT start and not before.  120 tries
+# 5s apart keeps that door open for ten minutes, then gives up so a headless
+# login does not respawn forever.
+StartLimitIntervalSec=600
+StartLimitBurst=120
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/quickkey --daemon
 # Ctrl-Q in the window is a deliberate quit and exits 0; only crashes restart.
 Restart=on-failure
-RestartSec=2s
+RestartSec=5s
 
 [Install]
 # NOT graphical-session.target: many X sessions (startx, bare window

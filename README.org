@@ -208,7 +208,28 @@ systemctl --user is-active graphical-session.target
 #+end_src
 
 If it says =active=, either target works. The unit is still /ordered/ after
-it, and retries for a minute if the display is not up yet.
+it.
+
+*Upgrading from a version before 1.0.1?* Early units were wanted by
+=graphical-session.target=, and installing a package never rewrites an
+enablement you already made -- so the symlink stays in
+=graphical-session.target.wants/=, which on a =startx= session never
+activates. =systemctl --user is-enabled= still answers =enabled=, so nothing
+looks wrong while the service never starts. Repoint it:
+
+#+begin_src sh
+systemctl --user reenable quickkey          # rewrites the symlink per the unit
+systemctl --user list-dependencies default.target | grep quickkey
+#+end_src
+
+The second line is the real check: =is-enabled= only says a symlink exists
+somewhere, not that anything pulls it in.
+
+A =startx= login reaches =default.target= minutes before X exists, and the
+daemon needs =DISPLAY=. Retrying is the only cure -- a service's environment
+is captured when it starts, so a =DISPLAY= imported later is picked up on the
+next start and not before -- so the unit retries every 5s for ten minutes,
+then gives up rather than respawn forever on a headless login.
 
 If the service starts but the hotkey never reaches it, your session probably
 did not export =DISPLAY= into the systemd user manager. Check with

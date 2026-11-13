@@ -1,3 +1,16 @@
+quickkey (1.4.1-1) unstable; urgency=medium
+
+  * Keep retrying the daemon until a display exists.  A startx login reaches
+    default.target minutes before X does, and the daemon cannot build its
+    window without $DISPLAY, so it exited 1 and the old retry policy gave up
+    after 20 seconds.  It now retries every 5s for ten minutes.
+  * README: document that upgrading from a version before 1.0.1 leaves the
+    enablement symlink in graphical-session.target.wants/, which on a startx
+    session never activates, and that `systemctl --user is-enabled` reports
+    `enabled` anyway.  `systemctl --user reenable quickkey` repoints it.
+
+ -- ghollisjr <ghollisjr@gmail.com>  Fri, 13 Nov 2026 00:50:00 -0500
+
 quickkey (1.4.0-1) unstable; urgency=medium
 
   * Filter fuzzily: the query splits on whitespace and every term has to
